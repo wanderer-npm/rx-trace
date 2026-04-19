@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: rx
+      POSTGRES_PASSWORD: rx
+      POSTGRES_DB: rxtrace
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+      - ./db/seed.sql:/docker-entrypoint-initdb.d/002_seed.sql:ro
+
+  api:
+    build: ./api
+    environment:
+      DATABASE_URL: postgres://rx:rx@postgres:5432/rxtrace?sslmode=disable
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-rx-trace <onboarding@resend.dev>}
+      SITE_URL: ${SITE_URL:-http://localhost:3000}
+    ports:
+      - "127.0.0.1:8090:8080"
+    depends_on:
+      - postgres
+
+  web:
+    build:
+      context: ./web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8090
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8090
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
